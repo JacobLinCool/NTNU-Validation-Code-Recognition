@@ -1,4 +1,4 @@
-for i in range(100, 200):
+for i in range(500):
     while True:
         label = input(f"Enter label of image_{i:05}.jpg: ")
         if len(label) == 3: label += "="
