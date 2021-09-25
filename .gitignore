@@ -1,6 +1,9 @@
 __pycache__
 
 dataset
-train
-train*.py
+train/*/*/train
+train/*/*/validation
+train/*/*/ckpt
+*.h5
+# train*.py
 test*

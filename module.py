@@ -37,19 +37,50 @@ class MyConv(tf.keras.layers.Layer):
 
 
 class Bottleneck(tf.keras.layers.Layer):
-    def __init__(self, filter):
+    def __init__(self, filter, shortcut=True):
         super(Bottleneck, self).__init__(filter)
-        self.cv = MyConv(filter, kernel_size=3, strides=1)
+        self.cv1 = MyConv(filter, kernel_size=1, strides=1)
+        self.cv2 = MyConv(filter, kernel_size=3, strides=1)
+        self.add = shortcut
 
     def forward(self, x):
-        return x + self.cv(x)
+        return x + self.cv2(self.cv1(x)) if self.add else self.cv2(self.cv1(x))
+
+
+class MyBottleneck(tf.keras.layers.Layer):
+    def __init__(self, filter, shortcut=True):
+        super().__init__()
+        self.cv  = MyConv(filter, kernel_size=3, strides=1)
+        self.add = shortcut
+
+    def forward(self, x):
+        return x + self.cv(x) if self.add else self.cv(x)
 
 
 class CSPBottleneck(tf.keras.layers.Layer):
-    def __init__(self, filter, n):
-        super(CSPBottleneck, self).__init__()
+    def __init__(self, filter, n, shortcut=True):
+        super().__init__()
         self.cv1 = MyConv(filter, kernel_size=1, strides=1)
-        self.b   = [ Bottleneck(filter) for _ in range(n) ]
+        self.b   = [ Bottleneck(filter, shortcut) for _ in range(n) ]
+        self.cv2 = tf.keras.layers.Conv2D(filter, kernel_size=1, strides=1, use_bias=False)
+        self.cv3 = tf.keras.layers.Conv2D(filter, kernel_size=1, strides=1, use_bias=False)
+        self.bn  = tf.keras.layers.BatchNormalization()
+        self.act = tf.nn.leaky_relu
+        self.cv4 = MyConv(filter, kernel_size=1, strides=1)
+
+    def forward(self, x):
+        y1 = self.cv1(x)
+        for b in self.b: y1 = b(y1)
+        y1 = self.cv2(y1)
+        y2 = self.cv3(x)
+        return self.cv4(self.act(self.bn(tf.concat([y1, y2], axis=1)), alpha=0.1))
+
+
+class MyCSPBottleneck(tf.keras.layers.Layer):
+    def __init__(self, filter, n=1, shortcut=True):
+        super().__init__()
+        self.cv1 = MyConv(filter, kernel_size=1, strides=1)
+        self.b   = [ MyBottleneck(filter, shortcut) for _ in range(n) ]
         self.cv3 = tf.keras.layers.Conv2D(filter, kernel_size=1, strides=1, use_bias=False)
         self.bn  = tf.keras.layers.BatchNormalization()
         self.act = tf.nn.leaky_relu
@@ -59,7 +90,7 @@ class CSPBottleneck(tf.keras.layers.Layer):
         y1 = self.cv1(x)
         for b in self.b: y1 = b(y1)
         y2 = self.cv3(x)
-        return self.cv4(self.act(self.bn(tf.concat([y1, y2], dim=1)), alpha=0.1))
+        return self.cv4(self.act(self.bn(tf.concat([y1, y2], axis=1)), alpha=0.1))
 
 
 class CSPBottleneck2(tf.keras.layers.Layer):
