@@ -1,3 +1,9 @@
+weights_file_path = "path/to/val_acc.h5"
+
+
+# ================================================== #
+
+
 import tensorflow as tf
 from module import MyConv, MyCSPBottleneck
 
@@ -143,4 +149,4 @@ class MyModel(tf.keras.Model):
 def loadMyBestModel():
     model = MyModel(dropout_rate=0.955)
     model.build(input_shape=(None, 60, 216, 1))
-    model.load_weights("train/resize_2/25-22.35_lr=0.0015_dr=0.05_do=0.955_bs=16_img=600/val_acc.h5")
+    model.load_weights(weights_file_path)
