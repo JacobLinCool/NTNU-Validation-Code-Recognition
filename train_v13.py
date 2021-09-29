@@ -247,7 +247,7 @@ def train(epochs, patience, do, bs, lr, dr, img_no, log_dir):
 if __name__ == "__main__":
 
     learning_rate_list = [  9e-4 ]
-    decay_rate_list    = [ 0.017, 0.018 ]
+    decay_rate_list    = [ 0.017 ]
     dropout_rate_list  = [  0.93 ]
     bactch_size_list   = [    16 ]
     
