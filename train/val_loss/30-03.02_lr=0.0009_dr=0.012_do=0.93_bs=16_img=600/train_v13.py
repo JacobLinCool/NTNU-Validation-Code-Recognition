@@ -1,6 +1,5 @@
 """
-This version trains model on data which is
-resized validate code images from (30, 108) to (60, 216).
+Test
 """
 
 
@@ -10,9 +9,7 @@ import numpy as np
 import tensorflow as tf
 from PIL import Image
 from shutil import copy
-
-from tensorflow.python.keras.backend import expand_dims
-from module import MyConv, MyCSPBottleneck
+from module import Mish
 
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -150,6 +147,7 @@ def read_dataset(img_no):
             Y.append(labels)
     X = np.array(X, dtype=np.float)
     X = np.expand_dims(X, axis=3)
+    print(X.shape)
     Y = np.array(Y)
     return X, Y
 
@@ -158,14 +156,10 @@ class Detector(tf.keras.layers.Layer):
     def __init__(self):
         super(Detector, self).__init__()
         self.denses = [ tf.keras.Sequential([
-            # tf.keras.layers.Dense(2048, activation="relu"),
-            # tf.keras.layers.Dense(1024, activation="relu"),
-            # tf.keras.layers.Dense( 512, activation="relu"),
-            # tf.keras.layers.Dense( 256, activation="relu"),
-            # tf.keras.layers.Dense( 128, activation="relu"),
-            tf.keras.layers.Dense(  64, activation="relu"),
-            tf.keras.layers.Dense(  32, activation="relu"),
-            tf.keras.layers.Dense(  16, activation="relu"),
+            tf.keras.layers.Dense(64, activation=Mish()),
+            tf.keras.layers.Dense(32, activation=Mish()),
+            tf.keras.layers.Dense(16, activation=Mish()),
+            tf.keras.layers.Dense( 8, activation=Mish()),
         ]) for _ in range(4) ]
         self.detect = tf.keras.layers.Dense(class_num, activation="softmax")
 
@@ -173,39 +167,6 @@ class Detector(tf.keras.layers.Layer):
         y = tf.concat([
             tf.expand_dims(self.detect(self.denses[i](x)), axis=1) for i in range(4)
         ], axis=1)
-        return y
-
-
-class MyModel(tf.keras.Model):
-    def __init__(self, dropout_rate):
-        super(MyModel, self).__init__()
-        self.cv    = MyConv(32, kernel_size=3, strides=1)
-        self.cv_p1 = MyConv(64, kernel_size=3, strides=2)    # (30, 108,   64)
-        self.bn_p1 = MyCSPBottleneck(64, 1)
-        self.cv_p2 = MyConv(128, kernel_size=3, strides=2)   # (15,  54,  128)
-        self.bn_p2 = MyCSPBottleneck(128, 3)
-        self.cv_p3 = MyConv(256, kernel_size=3, strides=2)   # ( 8,  27,  256)
-        self.bn_p3 = MyCSPBottleneck(256, 15)
-        self.cv_p4 = MyConv(512, kernel_size=3, strides=2)   # ( 4,  14,  512)
-        self.bn_p4 = MyCSPBottleneck(512, 15)
-        self.cv_p5 = MyConv(1024, kernel_size=3, strides=2)  # ( 2,   7, 1024)
-        self.bn_p5 = MyCSPBottleneck(1024, 7)
-        self.cv_p6 = MyConv(2048, kernel_size=3, strides=2)  # ( 1,   4, 2048)
-        self.bn_p6 = MyCSPBottleneck(2048, 7)
-        self.flatten  = tf.keras.layers.Flatten()
-        self.dropout  = tf.keras.layers.Dropout(dropout_rate)
-        self.detector = Detector()
-
-    def call(self, x):
-        x = self.bn_p1(self.cv_p1(self.cv(x)))
-        x = self.bn_p2(self.cv_p2(x))
-        x = self.bn_p3(self.cv_p3(x))
-        x = self.bn_p4(self.cv_p4(x))
-        x = self.bn_p5(self.cv_p5(x))
-        x = self.bn_p6(self.cv_p6(x))
-
-        y = self.flatten(self.dropout(x))
-        y = self.detector(y)
         return y
 
 
@@ -220,8 +181,12 @@ def train(epochs, patience, do, bs, lr, dr, img_no, log_dir):
     tensorboard_callback = tf.keras.callbacks.TensorBoard(
         log_dir=log_dir, histogram_freq=10
     )
+    # early_stopping = tf.keras.callbacks.EarlyStopping(
+    #     monitor="val_sparse_categorical_accuracy", mode="max",
+    #     verbose=1, patience=patience,
+    # )
     early_stopping = tf.keras.callbacks.EarlyStopping(
-        monitor="val_sparse_categorical_accuracy", mode="max",
+        monitor="val_loss", mode="min",
         verbose=1, patience=patience,
     )
     val_loss_ckpt_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -237,7 +202,37 @@ def train(epochs, patience, do, bs, lr, dr, img_no, log_dir):
 
     X, Y = read_dataset(img_no)
 
-    model = MyModel(dropout_rate=do)
+    model = tf.keras.Sequential([
+        # batch, 60, 216,    1
+        tf.keras.layers.Conv2D(  32, 3, strides=1, padding="same", activation=tf.nn.silu),
+        tf.keras.layers.MaxPool2D(padding="same"),
+        tf.keras.layers.BatchNormalization(),
+        # batch, 30, 108,   32
+        tf.keras.layers.Conv2D(  64, 3, strides=1, padding="same", activation=tf.nn.silu),
+        tf.keras.layers.MaxPool2D(padding="same"),
+        tf.keras.layers.BatchNormalization(),
+        # batch, 15,  54,   64
+        tf.keras.layers.Conv2D( 128, 3, strides=1, padding="same", activation=tf.nn.silu),
+        tf.keras.layers.MaxPool2D(padding="same"),
+        tf.keras.layers.BatchNormalization(),
+        # batch,  8,  27,  128
+        tf.keras.layers.Conv2D( 256, 3, strides=1, padding="same", activation=tf.nn.silu),
+        tf.keras.layers.MaxPool2D(padding="same"),
+        tf.keras.layers.BatchNormalization(),
+        # batch,  4,  14,  256
+        tf.keras.layers.Conv2D( 512, 3, strides=1, padding="same", activation=tf.nn.silu),
+        tf.keras.layers.MaxPool2D(padding="same"),
+        tf.keras.layers.BatchNormalization(),
+        # batch,  2,   7,  512
+        tf.keras.layers.Conv2D(1024, 3, strides=1, padding="same", activation=tf.nn.silu),
+        tf.keras.layers.MaxPool2D(padding="same"),
+        tf.keras.layers.BatchNormalization(),
+        # batch,  1,   4, 1024
+        tf.keras.layers.Flatten(),
+        # batch,  4096
+        tf.keras.layers.Dropout(rate=do),
+        Detector(),
+    ])
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr_schedule),
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(),
                 metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
@@ -251,14 +246,14 @@ def train(epochs, patience, do, bs, lr, dr, img_no, log_dir):
 
 if __name__ == "__main__":
 
-    learning_rate_list = [ 15e-4 ]
-    decay_rate_list    = [  0.05 ]
-    dropout_rate_list  = [  0.95, 0.945 ]
+    learning_rate_list = [  9e-4 ]
+    decay_rate_list    = [ 0.012, 0.013, 0.014 ]
+    dropout_rate_list  = [  0.93 ]
     bactch_size_list   = [    16 ]
     
     img_no   = 600
-    epochs   = 500
-    patience = 50
+    epochs   = 600
+    patience = 60
 
     list_len = max(len(dropout_rate_list), len(bactch_size_list), len(learning_rate_list), len(decay_rate_list))
 
@@ -271,6 +266,6 @@ if __name__ == "__main__":
         lr = learning_rate_list[i] if len(learning_rate_list) == list_len else learning_rate_list[0]
         dr = decay_rate_list[i]    if len(decay_rate_list)    == list_len else decay_rate_list[0]
 
-        log_dir = "train/resize_2/" + datetime.datetime.now().strftime(f"%d-%H.%M") + \
+        log_dir = "train/test_val_loss/" + datetime.datetime.now().strftime(f"%d-%H.%M") + \
                  f"_lr={lr}_dr={dr}_do={do}_bs={bs}_img={img_no}"
         train(epochs, patience, do, bs, lr, dr, img_no, log_dir)
