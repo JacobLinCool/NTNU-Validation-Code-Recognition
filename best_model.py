@@ -1,4 +1,4 @@
-weights_file_path = "path/to/val_acc.h5"
+weights_file_path = "path/to/val_loss.h5"
 
 
 # ================================================== #
@@ -141,3 +141,4 @@ def loadMyBestModel():
     ])
     model.build(input_shape=(None, 60, 216, 1))
     model.load_weights(weights_file_path)
+    return model

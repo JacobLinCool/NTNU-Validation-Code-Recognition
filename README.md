@@ -16,11 +16,11 @@ For this task, I wrote a simple program `labeling.py`.
 
 Feel free to download and use them.
 
-## The best model I have trained: 94.99% validation accuracy
+## The best model I have trained: 100% validation accuracy
 The architecture of the best model I found is in the file `best_model.py`.
 
 To use it, you can execute the program `predict.py`.
 
-However, you will need the weights file (`.h5` file) that I have trained, which is at [here](https://drive.google.com/file/d/1qdB1SECI-cwqbUQNbJ834EcRAX07i4Z5/view?usp=sharing).
+However, you will need the weights file (`val_loss.h5`) that I have trained, which is at [here](https://drive.google.com/file/d/16YL-915VVvY0bSMr2FiKhVnV19ipYF59/view?usp=sharing).
 
-Remember to edit the weights file (`.h5` file) path in `best_model.py` to where you put my pretrained weights file.
+Remember to edit the weights file (`val_loss.h5`) path in `best_model.py` to where you put my pretrained weights file.
