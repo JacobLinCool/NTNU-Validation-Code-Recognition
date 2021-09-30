@@ -19,8 +19,8 @@ Feel free to download and use them.
 ## The best model I have trained: 100% validation accuracy
 The architecture of the best model I found is in the file `best_model.py`.
 
-To use it, you can execute the program `predict.py`.
+To use it, you can try understanding how the program `predict.py` works, and do some adjustments to fit your need.
 
 However, you will need the weights file (`val_loss.h5`) that I have trained, which is at [here](https://drive.google.com/file/d/16YL-915VVvY0bSMr2FiKhVnV19ipYF59/view?usp=sharing).
 
-Remember to edit the weights file (`val_loss.h5`) path in `best_model.py` to where you put my pretrained weights file.
+Remember to edit the weights file (`val_loss.h5`) path in the first line of `best_model.py` to where you put the pretrained weights file.
