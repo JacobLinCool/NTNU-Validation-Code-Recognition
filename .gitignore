@@ -1,9 +1,2 @@
-__pycache__
-
-dataset
-train/*/*/train
-train/*/*/validation
-train/*/*/ckpt
-*.h5
-# train*.py
-test*
+**/node_modules/
+**/.DS_Store
